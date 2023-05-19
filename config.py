@@ -1,0 +1,1 @@
+settings = {'token':'MTEwODcyNjU4MDc2ODk0ODI2NA.GY93YD.lsFBGk4bAX5igJQQvKZAl4qqqEVFSXTys_hdAI','id_server':'1108728687387484321'}
