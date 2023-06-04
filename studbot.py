@@ -18,11 +18,13 @@ bot = commands.Bot(command_prefix= get_server_prefix, intents=intents)
 
 @bot.event
 async def on_member_join(member):
+    """Присвоение роли человеку при входе на сервер"""
     role = discord.utils.get(member.guild.roles, name= role_name)
     await member.add_roles(role)
 
 @bot.event
 async def on_guild_join(guild):
+    """Заполнение json файла при заходе бота на сервер"""
     with open("prefix.json","r") as f:
         prefix = json.load(f)
 
@@ -35,6 +37,7 @@ async def on_guild_join(guild):
 
 @bot.event
 async def on_guild_remove(guild):
+    """Очистка json файла, префикса сервера откуда вышел бот"""
     with open("prefix.json","r") as f:
         prefix = json.load(f)
 
@@ -46,7 +49,8 @@ async def on_guild_remove(guild):
 "<------------[Вывод префикса]------------>"
 
 @bot.slash_command(id_server = [settings['id_server']])
-async def prefix(ctx: discord.ApplicationContext):
+async def prefix(ctx: discord.ApplicationContext)-> str:
+    """Функция которая выводит информацию о префиксе для команд на определенном сервере"""
     with open('prefix.json') as file:
         data = json.load(file)
         if settings['id_server'] in data:
@@ -59,6 +63,7 @@ async def prefix(ctx: discord.ApplicationContext):
 
 @bot.slash_command(id_server = [settings['id_server']])
 async def setprefix(ctx: discord.ApplicationContext,*,newprefix:str):
+    """Установка нового префикса на сервере"""
     with open("prefix.json","r") as f:
         prefix = json.load(f)
 
@@ -69,6 +74,7 @@ async def setprefix(ctx: discord.ApplicationContext,*,newprefix:str):
     await ctx.response.send_message(f"Префикс сменен на {newprefix}", ephemeral=True) 
 
 def get_prefix():
+    """Чтение префикса их файла"""
     with open('prefix.json') as file:
         data = json.load(file)
         if settings['id_server'] in data:
@@ -81,6 +87,7 @@ def get_prefix():
 
 class MyView(View):
     def __init__(self):
+        """Создании кнопки для перехода на ролевую систему"""
         super().__init__()
         self.add_item(Button(label="Переход к просмотру ролевой системы", url="https://miro.com/app/board/uXjVMHAPgZY=/"))
 
@@ -92,6 +99,7 @@ class Accept(View):
 
 @bot.slash_command(name="roles")
 async def roles(ctx: discord.ApplicationContext):
+    """Вывод ссылки на ролевую модель в виде таблицы"""
     view = MyView()
     await ctx.send(view=view)
     
@@ -99,6 +107,7 @@ async def roles(ctx: discord.ApplicationContext):
 
 @bot.slash_command(id_server=[settings['id_server']])
 async def welcome(ctx: discord.ApplicationContext):
+    """Вывод правил сервера"""
     emb = discord.Embed(title='Правила')
     emb.add_field(name=':one: Запрещено', value='Использование микрофона без разрешения во время учебного процесса', inline=False)
     emb.add_field(name=':two: Запрещено', value='Использование звуковой панели', inline=False)
@@ -130,6 +139,7 @@ async def setup_role_button(ctx):
 
 def has_adm_role():
     def predicate(ctx):
+        """Задает ограницения по определенной роли"""
         adm_role = discord.utils.get(ctx.guild.roles, name="📌Администратор")
         return adm_role in ctx.author.roles
     return commands.check(predicate)
@@ -137,6 +147,7 @@ def has_adm_role():
 @bot.slash_command(id_server = [settings['id_server']])
 @has_adm_role()
 async def userinfo(ctx: discord.ApplicationContext, user: discord.User):
+    """Вывод информации о пользователе"""
     user_id = user.id
     username = user.name
     avatar = user.display_avatar.url
@@ -144,16 +155,19 @@ async def userinfo(ctx: discord.ApplicationContext, user: discord.User):
 
 @userinfo.error
 async def roll_error(ctx):
+    """Вывод ошибки при нарушении прав пользования командами"""
     await ctx.send('Извините, но у вас нет роли "📌Администратор" для использования этой команды.')
 
 @bot.command() 
-async def members(ctx): 
+async def members(ctx):
+    """Вывод всех тегов пользователей"""
     for guild in bot.guilds:
         for member in guild.members:
             await ctx.send(f"Пользователь - {member}")
 
 @bot.slash_command(id_server=[settings['id_server']])
 async def info_command(ctx: discord.ApplicationContext):
+    """Вывод всех команд и их уровни доступа"""
     emb = discord.Embed(title='Все команды')
     emb.add_field(name='Уровень доступа | Название ', value='Функционал', inline=False)
     emb.add_field(name='3 уровень доступа | members', value='Вывод всех тегов пользователей', inline=False)
@@ -165,6 +179,7 @@ async def info_command(ctx: discord.ApplicationContext):
 
 @bot.event
 async def on_ready():
+    """Вывод в консоль информации о состоянии бота"""
     print(f'Бот включен {bot.user}')
 
 bot.run(settings['token'])
