@@ -1,1 +1,1 @@
-settings = {'token':'MTEwODcyNjU4MDc2ODk0ODI2NA.GpyLYf.fY2mMleoHdt6-_2DQ3zUwhykgWE7pmrBWWpKv8','id_server':'1108728687387484321'}
+settings = {'token':'MTEwODcyNjU4MDc2ODk0ODI2NA.Gl3k46.FBDpbZ6DYk8VUSFVbCyKYqoMI841oeodiTgCTA','id_server':'1108728687387484321'}
