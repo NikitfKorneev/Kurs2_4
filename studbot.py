@@ -132,6 +132,22 @@ class RoleButton(View):
         await interaction.response.send_message(f"Поздравляю вы получили роль {role.name}", ephemeral=True)
 
 @bot.command()
+async def start(ctx, role: discord.Role):
+    allowed_roles = [1108741366541979759,1108741692485546054,1108741762547187814,1108741847678980216,1108741923398746206,1108742278660505630]
+    role_id_check = role.id
+    if role_id_check not in allowed_roles:
+       await ctx.send(f"Запрещено тэгать эту роль!")
+       await ctx.message.delete()
+       return
+    await ctx.message.delete()
+    await ctx.send(f"<@&{role_id_check}> Подключаемся к паре!")
+
+@bot.command()
+async def role_id(ctx, role: discord.Role):
+    role_id = role.id
+    await ctx.send(f"ID роли '{role.name}': {role_id}")
+
+@bot.command()
 async def setup_role_button(ctx):
     # Создаем новую кнопку с указанным ID роли
     role_button = RoleButton(role_id=1108739184962830408)
@@ -175,7 +191,24 @@ async def info_command(ctx: discord.ApplicationContext):
     emb.add_field(name='Общий уровень доступа | welcome', value='Вывод правил сервера', inline=False)
     emb.add_field(name='1 уровень доступа | roles', value='Переход на доску миро с описанием ролевой модели', inline=False)
     emb.add_field(name='2 уровень доступа | setprefix', value='Установка нового префикса на сервере', inline=False)
-    await ctx.response.send_message(embed=emb, ephemeral=True)    
+    await ctx.response.send_message(embed=emb, ephemeral=True) 
+
+word_responses = {
+    'бля': 'Не матерись!'
+}
+
+@bot.event
+async def on_message(message):
+    if not message.author.bot:
+        content = message.content.lower()
+
+        for word, response in word_responses.items():
+            if word in content:
+                await message.delete()
+                await message.channel.send(response)
+                break  
+
+    await bot.process_commands(message) 
 
 @bot.event
 async def on_ready():
