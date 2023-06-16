@@ -4,6 +4,7 @@ from discord.ui import Button, View
 from discord.ext import commands
 import json
 
+ticket_category_name = "Тикеты"
 role_name = '🕑 Гость'
 
 def get_server_prefix(client, message):
@@ -14,13 +15,29 @@ def get_server_prefix(client, message):
 
 intents = discord.Intents.all()
 intents.message_content = True
+intents.voice_states = True
+intents.guild_messages = True
 bot = commands.Bot(command_prefix= get_server_prefix, intents=intents)
+
+@bot.command()
+async def autorole(ctx, *, role_name_input):
+    global role_name
+
+    # Проверяем, существует ли указанная роль в сервере
+    role = discord.utils.get(ctx.guild.roles, name=role_name_input)
+    if role is None:
+        await ctx.send(f"Роль '{role_name_input}' не существует.")
+        return
+
+    role_name = role_name_input
+    await ctx.send(f"Авто роль изменена на '{role_name}'.")
 
 @bot.event
 async def on_member_join(member):
-    """Присвоение роли человеку при входе на сервер"""
-    role = discord.utils.get(member.guild.roles, name= role_name)
-    await member.add_roles(role)
+    global role_name
+    role = discord.utils.get(member.guild.roles, name=role_name)
+    if role is not None:
+        await member.add_roles(role)
 
 @bot.event
 async def on_guild_join(guild):
@@ -58,6 +75,84 @@ async def prefix(ctx: discord.ApplicationContext)-> str:
         else:
             templates = "Ключ сервера не найден"
     await ctx.respond(f"Префикс сервера - {templates}")
+
+"<------------[Временные войс каналы]------------>"
+@bot.event
+async def on_voice_state_update(member, before, after):
+    if after.channel is not None and after.channel != before.channel:
+        if "time" in after.channel.name.lower():
+            await create_temporary_channel(after.channel, member)
+
+    if before.channel is not None and before.channel != after.channel:
+        if len(before.channel.members) == 0:
+            await delete_temporary_channel(before.channel)
+
+async def create_temporary_channel(channel, member):
+    category = channel.category 
+    if "time" in channel.name.lower():
+        new_channel = await channel.clone() 
+        await new_channel.edit(name=f"Temp")  
+        await new_channel.edit(category=None)  
+        await new_channel.set_permissions(channel.guild.default_role, connect=True)  
+        await new_channel.set_permissions(new_channel.guild.me, connect=True)  
+        await member.move_to(new_channel)
+
+async def delete_temporary_channel(channel):
+    if "temp" in channel.name.lower():
+        await channel.delete()
+
+
+"<------------[Cистема тикетов]------------>"
+@bot.command()
+async def ticket(ctx):
+    # Создаем временный текстовый канал
+    ticket_channel = await create_temporary_channel(ctx.author)
+
+    # Отправляем сообщение с информацией о созданном канале
+    await ctx.send(f"Создан тикет: {ticket_channel.mention}")
+
+    # Отправляем сообщение с кнопкой закрытия тикета
+    await send_close_ticket_message(ticket_channel)
+
+async def create_temporary_channel(author):
+    guild = author.guild
+    category = discord.utils.get(guild.categories, name=ticket_category_name)
+
+    # Проверяем, есть ли категория для тикетов. Если нет, создаем новую категорию.
+    if category is None:
+        category = await guild.create_category(name=ticket_category_name)
+
+    # Создаем временный текстовый канал
+    ticket_channel = await category.create_text_channel(name=f"ticket-{author.name}",
+                                                       overwrites=await get_channel_overwrites(guild, author))
+
+    return ticket_channel
+
+async def get_channel_overwrites(guild, author):
+    overwrites = {
+        guild.default_role: discord.PermissionOverwrite(read_messages=False),
+        guild.me: discord.PermissionOverwrite(read_messages=True),
+        author: discord.PermissionOverwrite(read_messages=True)
+    }
+    return overwrites
+
+async def send_close_ticket_message(channel):
+    # Создаем View для кнопки
+    class CloseTicketView(View):
+        def __init__(self):
+            super().__init__()
+            self.timeout = None
+
+        @discord.ui.button(label='Закрыть тикет', style=discord.ButtonStyle.danger, emoji='🔒')
+        async def close_ticket(self, button: discord.ui.Button, interaction: discord.Interaction):
+            await channel.delete()
+
+    # Создаем сообщение с кнопкой закрытия тикета
+    embed = discord.Embed(title='Тикет', description='Для закрытия тикета нажмите кнопку ниже.')
+    view = CloseTicketView()
+    message = await channel.send(embed=embed, view=view)
+
+    return message
 
 "<------------[Смена префикса]------------>"
 
