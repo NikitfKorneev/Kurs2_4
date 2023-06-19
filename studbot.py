@@ -2,10 +2,25 @@ import discord
 from config import settings
 from discord.ui import Button, View
 from discord.ext import commands
+from googletrans import Translator
+from pytils import translit
+import platform
+from datetime import datetime, timedelta
+from googleapiclient.discovery import build
+import asyncio
 import json
+import openai
 
+# ID канала, в который нужно отправить сообщение
+CHANNEL_ID = '1108748083950534738'
+# Период без активности (в днях), после которого отправляется сообщение
+INACTIVITY_PERIOD = 2
+API_KEY = 'AIzaSyAAb1RWQBjymwG36rh7M101ySR6Rojt4Sw'
+OPENAI_API_KEY = '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'
 ticket_category_name = "Тикеты"
 role_name = '🕑 Гость'
+
+translator = Translator()
 
 def get_server_prefix(client, message):
     with open("prefix.json","r") as f:
@@ -63,6 +78,220 @@ async def on_guild_remove(guild):
     with open("prefix.json","w") as f:
         json.dump(prefix,f,indent=4)
 
+@bot.command()
+async def transl(ctx, *,text):
+    # Создаем словарь для замены символов
+    translit_dict = {
+        'q': 'й',
+        'w': 'ц',
+        'e': 'у',
+        'r': 'к',
+        't': 'е',
+        'y': 'н',
+        'u': 'г',
+        'i': 'ш',
+        'o': 'щ',
+        'p': 'з',
+        'a': 'ф',
+        's': 'ы',
+        'd': 'в',
+        'f': 'а',
+        'g': 'п',
+        'h': 'р',
+        'j': 'о',
+        'k': 'л',
+        'l': 'д',
+        'z': 'я',
+        'x': 'ч',
+        'c': 'с',
+        'v': 'м',
+        'b': 'и',
+        'n': 'т',
+        'm': 'ь',
+        ' ': ' ',
+        '-': '-',
+        '`': 'ё'
+    }
+    
+    result = ''
+    for char in text:
+        if char.lower() in translit_dict:
+            result += translit_dict[char.lower()]
+        else:
+            result += char
+    
+    # Отправляем результат в чат
+    await ctx.send(result)
+
+@bot.command()
+async def youtube_search(ctx, *, query):
+    try:
+        # Создаем YouTube Data API клиент
+        youtube = build('youtube', 'v3', developerKey=API_KEY)
+        
+        # Осуществляем поиск видео по запросу
+        search_response = youtube.search().list(
+            q=query,
+            part='id',
+            maxResults=5
+        ).execute()
+        
+        # Получаем ссылки на найденные видео
+        video_links = []
+        for item in search_response['items']:
+            if item['id']['kind'] == 'youtube#video':
+                video_links.append(f"https://www.youtube.com/watch?v={item['id']['videoId']}")
+        
+        # Отправляем ссылки в личные сообщения пользователю
+        if video_links:
+            user = ctx.author
+            for link in video_links:
+                await user.send(link)
+            await ctx.send(f'Я отправил ссылки на видео по запросу "{query}" в личные сообщения.')
+        else:
+            await ctx.send(f'По запросу "{query}" не найдено видео на YouTube.')
+    except Exception as e:
+        await ctx.send(f'Ошибка при выполнении поиска: {str(e)}')
+
+@bot.command()
+async def prole(ctx, role_name):
+    guild = ctx.guild
+    role = discord.utils.get(guild.roles, name=role_name)
+    
+    if role is None:
+        await ctx.send(f"Роль '{role_name}' не найдена.")
+        return
+    
+    online_users = [member for member in guild.members if role in member.roles and str(member.status) == 'online']
+    
+    message = f"Пользователи с ролью '{role_name}', находящиеся в сети:\n\n"
+    for user in online_users:
+        message += f"<@{user.id}>\n"
+    
+    await ctx.author.send(message)
+    await ctx.send("Информация отправлена в личное сообщение.")
+
+@bot.command()
+async def poll(ctx, question, *options):
+    # Создаем встраиваемое сообщение для голосования
+    embed = discord.Embed(title="Голосование", description=question, color=discord.Color.blue())
+    
+    # Формируем список вариантов ответов
+    options_text = "\n".join([f"{i + 1}. {option}" for i, option in enumerate(options)])
+    embed.add_field(name="Варианты ответов", value=options_text, inline=False)
+    
+    # Отправляем встраиваемое сообщение
+    message = await ctx.send(embed=embed)
+    
+    # Добавляем реакции к сообщению для каждого варианта ответа
+    for i, _ in enumerate(options):
+        emoji = get_emoji(i)
+        await message.add_reaction(emoji)
+    
+    # Ожидаем реакции пользователей
+    def check(reaction, user):
+        return user == ctx.author and reaction.message.id == message.id
+    
+    try:
+        reaction, user = await bot.wait_for("reaction_add", check=check, timeout=60)
+        
+        # Получаем выбранный вариант ответа
+        selected_option = get_option(reaction.emoji, options)
+        
+        # Обновляем встраиваемое сообщение с результатом голосования
+        embed.add_field(name="Результат", value=f"Вы выбрали вариант: {selected_option}")
+        await message.edit(embed=embed)
+    except TimeoutError:
+        await message.edit(content="Голосование завершилось по таймауту.")
+    
+    # Удаляем сообщение пользователя
+    await ctx.message.delete()
+
+# Функция для получения соответствующего эмодзи по индексу
+def get_emoji(index):
+    emojis = ["1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣", "🔟"]
+    return emojis[index]
+
+# Функция для получения соответствующего варианта ответа по эмодзи
+def get_option(emoji, options):
+    emojis = ["1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣", "🔟"]
+    index = emojis.index(emoji)
+    return options[index]
+
+@bot.command()
+async def add_role(ctx, member: discord.Member, role: discord.Role, duration: int):
+    # Проверяем, имеет ли пользователь право назначать роли
+    if not ctx.author.guild_permissions.manage_roles:
+        await ctx.send("У вас нет разрешения на назначение ролей.")
+        return
+    
+    # Проверяем, имеет ли бот право назначать роли
+    if not ctx.guild.me.guild_permissions.manage_roles:
+        await ctx.send("У меня нет разрешения на назначение ролей.")
+        return
+    
+    # Назначаем роль пользователю
+    await member.add_roles(role)
+    await ctx.send(f"Роль `{role.name}` была назначена пользователю {member.mention} на {duration} секунд.")
+    
+    # Ждем указанное время
+    await asyncio.sleep(duration)
+    
+    # Снимаем роль с пользователя
+    await member.remove_roles(role)
+    await ctx.send(f"Роль `{role.name}` была снята с пользователя {member.mention}.")
+
+openai.api_key = OPENAI_API_KEY
+
+@bot.command()
+async def send_openai(ctx, *, message):
+    # Разделяем элементы списка по разделителю ';'
+    items = message.split(';')
+    
+    # Формируем нумерованный список с помощью Markdown
+    formatted_list = '\n'.join([f'{index}. {item.strip()}' for index, item in enumerate(items, start=1)])
+    
+    # Отправляем сообщение в Chat API v3
+    response = openai.Completion.create(
+        engine='text-davinci-003',
+        prompt=formatted_list,
+        max_tokens=4000,
+        n=1,
+        stop=None,
+        temperature=0.7 
+    )
+    
+    # Получаем ответ от Chat API
+    reply = response.choices[0].text.strip()
+    
+    # Отправляем ответ в канал Discord
+    await ctx.send(f"Ответ от Chat API: {reply}")
+
+@bot.command()
+async def system_info(ctx):
+    # Получаем системные характеристики
+    system_name = platform.system()
+    processor = platform.processor()
+    motherboard = platform.node()
+    gpu = "Недоступно"
+    try:
+        import GPUtil
+        gpus = GPUtil.getGPUs()
+        if gpus:
+            gpu = gpus[0].name
+    except ImportError:
+        pass
+    
+    # Форматируем информацию в виде сообщения
+    message = f"Системные характеристики:\n\n"
+    message += f"ОС: {system_name}\n"
+    message += f"Процессор: {processor}\n"
+    message += f"Материнская плата: {motherboard}\n"
+    message += f"Видеокарта: {gpu}\n"
+    
+    # Отправляем сообщение в канал Discord
+    await ctx.message.delete()
+    await ctx.send(message)
 "<------------[Вывод префикса]------------>"
 
 @bot.slash_command(id_server = [settings['id_server']])
@@ -81,13 +310,13 @@ async def prefix(ctx: discord.ApplicationContext)-> str:
 async def on_voice_state_update(member, before, after):
     if after.channel is not None and after.channel != before.channel:
         if "time" in after.channel.name.lower():
-            await create_temporary_channel(after.channel, member)
+            await creates_temporary_channel(after.channel, member)
 
     if before.channel is not None and before.channel != after.channel:
         if len(before.channel.members) == 0:
             await delete_temporary_channel(before.channel)
 
-async def create_temporary_channel(channel, member):
+async def creates_temporary_channel(channel, member):
     category = channel.category 
     if "time" in channel.name.lower():
         new_channel = await channel.clone() 
