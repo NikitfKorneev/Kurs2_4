@@ -11,12 +11,10 @@ import asyncio
 import json
 import openai
 
-# ID канала, в который нужно отправить сообщение
 CHANNEL_ID = '1108748083950534738'
-# Период без активности (в днях), после которого отправляется сообщение
 INACTIVITY_PERIOD = 2
 API_KEY = 'AIzaSyAAb1RWQBjymwG36rh7M101ySR6Rojt4Sw'
-OPENAI_API_KEY = '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'
+OPENAI_API_KEY = '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'
 ticket_category_name = "Тикеты"
 role_name = '🕑 Гость'
 
@@ -38,7 +36,6 @@ bot = commands.Bot(command_prefix= get_server_prefix, intents=intents)
 async def autorole(ctx, *, role_name_input):
     global role_name
 
-    # Проверяем, существует ли указанная роль в сервере
     role = discord.utils.get(ctx.guild.roles, name=role_name_input)
     if role is None:
         await ctx.send(f"Роль '{role_name_input}' не существует.")
@@ -65,8 +62,6 @@ async def on_guild_join(guild):
     with open("prefix.json","w") as f:
         json.dump(prefix,f,indent=4)
 
-"<------------[Автоматически меняет информацию о префиксе в json файле при выхода с сервера]------------>"
-
 @bot.event
 async def on_guild_remove(guild):
     """Очистка json файла, префикса сервера откуда вышел бот"""
@@ -80,7 +75,6 @@ async def on_guild_remove(guild):
 
 @bot.command()
 async def transl(ctx, *,text):
-    # Создаем словарь для замены символов
     translit_dict = {
         'q': 'й',
         'w': 'ц',
@@ -119,8 +113,7 @@ async def transl(ctx, *,text):
             result += translit_dict[char.lower()]
         else:
             result += char
-    
-    # Отправляем результат в чат
+
     await ctx.send(result)
 
 @bot.command()
