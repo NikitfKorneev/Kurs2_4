@@ -165,6 +165,24 @@ async def prole(ctx, role_name):
     await ctx.send("Информация отправлена в личное сообщение.")
 
 @bot.command()
+async def timer(ctx, seconds):
+    try:
+        seconds = int(seconds)
+    except ValueError:
+        await ctx.send("Пожалуйста, укажите число секунд в качестве аргумента.")
+        return
+
+    await ctx.send(f"Таймер установлен на {seconds} секунд.")
+
+    # Ожидаем указанное количество секунд
+    await asyncio.sleep(seconds)
+
+    # Отправляем уведомление о истечении времени в личное сообщение
+    await ctx.author.send(f"Время истекло после {seconds} секунд!")
+
+
+
+@bot.command()
 async def poll(ctx, question, *options):
     # Создаем встраиваемое сообщение для голосования
     embed = discord.Embed(title="Голосование", description=question, color=discord.Color.blue())
