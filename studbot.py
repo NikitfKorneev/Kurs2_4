@@ -13,8 +13,8 @@ import openai
 
 CHANNEL_ID = '1108748083950534738'
 INACTIVITY_PERIOD = 2
-API_KEY = 'AIzaSyAAb1RWQBjymwG36rh7M101ySR6Rojt4Sw'
-OPENAI_API_KEY = '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'
+API_KEY = 'AIzaSyAAb1RW01ySR6Rojt4Sw'
+OPENAI_API_KEY = 'sk-dSCtjWHUAyOkOsZe7m1zT3BlbkFJIy8X0r5H3'
 ticket_category_name = "Тикеты"
 role_name = '🕑 Гость'
 
